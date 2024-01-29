@@ -32,9 +32,11 @@ import comfy.model_management
 
 from app.user_manager import UserManager
 
+
 class BinaryEventTypes:
     PREVIEW_IMAGE = 1
     UNENCODED_PREVIEW_IMAGE = 2
+
 
 async def send_socket_catch_exception(function, message):
     try:
@@ -42,12 +44,14 @@ async def send_socket_catch_exception(function, message):
     except (aiohttp.ClientError, aiohttp.ClientPayloadError, ConnectionResetError) as err:
         print("send error:", err)
 
+
 @web.middleware
 async def cache_control(request: web.Request, handler):
     response: web.Response = await handler(request)
     if request.path.endswith('.js') or request.path.endswith('.css'):
         response.headers.setdefault('Cache-Control', 'no-cache')
     return response
+
 
 def create_cors_middleware(allowed_origin: str):
     @web.middleware
@@ -65,6 +69,7 @@ def create_cors_middleware(allowed_origin: str):
         return response
 
     return cors_middleware
+
 
 class PromptServer():
     def __init__(self, loop):
@@ -85,7 +90,8 @@ class PromptServer():
             middlewares.append(create_cors_middleware(args.enable_cors_header))
 
         max_upload_size = round(args.max_upload_size * 1024 * 1024)
-        self.app = web.Application(client_max_size=max_upload_size, middlewares=middlewares)
+        self.app = web.Application(
+            client_max_size=max_upload_size, middlewares=middlewares)
         self.sockets = dict()
         self.web_root = os.path.join(os.path.dirname(
             os.path.realpath(__file__)), "web")
@@ -111,14 +117,15 @@ class PromptServer():
 
             try:
                 # Send initial state to the new client
-                await self.send("status", { "status": self.get_queue_info(), 'sid': sid }, sid)
+                await self.send("status", {"status": self.get_queue_info(), 'sid': sid}, sid)
                 # On reconnect if we are the currently executing client send the current node
                 if self.client_id == sid and self.last_node_id is not None:
-                    await self.send("executing", { "node": self.last_node_id }, sid)
-                    
+                    await self.send("executing", {"node": self.last_node_id}, sid)
+
                 async for msg in ws:
                     if msg.type == aiohttp.WSMsgType.ERROR:
-                        print('ws connection closed with exception %s' % ws.exception())
+                        print('ws connection closed with exception %s' %
+                              ws.exception())
             finally:
                 self.sockets.pop(sid, None)
             return ws
@@ -136,11 +143,13 @@ class PromptServer():
         async def get_extensions(request):
             files = glob.glob(os.path.join(
                 glob.escape(self.web_root), 'extensions/**/*.js'), recursive=True)
-            
-            extensions = list(map(lambda f: "/" + os.path.relpath(f, self.web_root).replace("\\", "/"), files))
-            
+
+            extensions = list(
+                map(lambda f: "/" + os.path.relpath(f, self.web_root).replace("\\", "/"), files))
+
             for name, dir in nodes.EXTENSION_WEB_DIRS.items():
-                files = glob.glob(os.path.join(glob.escape(dir), '**/*.js'), recursive=True)
+                files = glob.glob(os.path.join(
+                    glob.escape(dir), '**/*.js'), recursive=True)
                 extensions.extend(list(map(lambda f: "/extensions/" + urllib.parse.quote(
                     name) + "/" + os.path.relpath(f, dir).replace("\\", "/"), files)))
 
@@ -172,8 +181,10 @@ class PromptServer():
                     return web.Response(status=400)
 
                 subfolder = post.get("subfolder", "")
-                full_output_folder = os.path.join(upload_dir, os.path.normpath(subfolder))
-                filepath = os.path.abspath(os.path.join(full_output_folder, filename))
+                full_output_folder = os.path.join(
+                    upload_dir, os.path.normpath(subfolder))
+                filepath = os.path.abspath(
+                    os.path.join(full_output_folder, filename))
 
                 if os.path.commonpath((upload_dir, filepath)) != upload_dir:
                     return web.Response(status=400)
@@ -198,7 +209,7 @@ class PromptServer():
                     with open(filepath, "wb") as f:
                         f.write(image.file.read())
 
-                return web.json_response({"name" : filename, "subfolder": subfolder, "type": image_upload_type})
+                return web.json_response({"name": filename, "subfolder": subfolder, "type": image_upload_type})
             else:
                 return web.Response(status=400)
 
@@ -207,14 +218,14 @@ class PromptServer():
             post = await request.post()
             return image_upload(post)
 
-
         @routes.post("/upload/mask")
         async def upload_mask(request):
             post = await request.post()
 
             def image_save_function(image, post, filepath):
                 original_ref = json.loads(post.get("original_ref"))
-                filename, output_dir = folder_paths.annotated_filepath(original_ref['filename'])
+                filename, output_dir = folder_paths.annotated_filepath(
+                    original_ref['filename'])
 
                 # validation for security: prevent accessing arbitrary path
                 if filename[0] == '/' or '..' in filename:
@@ -228,7 +239,8 @@ class PromptServer():
                     return web.Response(status=400)
 
                 if original_ref.get("subfolder", "") != "":
-                    full_output_dir = os.path.join(output_dir, original_ref["subfolder"])
+                    full_output_dir = os.path.join(
+                        output_dir, original_ref["subfolder"])
                     if os.path.commonpath((os.path.abspath(full_output_dir), output_dir)) != output_dir:
                         return web.Response(status=403)
                     output_dir = full_output_dir
@@ -238,7 +250,7 @@ class PromptServer():
                 if os.path.isfile(file):
                     with Image.open(file) as original_pil:
                         metadata = PngInfo()
-                        if hasattr(original_pil,'text'):
+                        if hasattr(original_pil, 'text'):
                             for key in original_pil.text:
                                 metadata.add_text(key, original_pil.text[key])
                         original_pil = original_pil.convert('RGBA')
@@ -247,7 +259,8 @@ class PromptServer():
                         # alpha copy
                         new_alpha = mask_pil.getchannel('A')
                         original_pil.putalpha(new_alpha)
-                        original_pil.save(filepath, compress_level=4, pnginfo=metadata)
+                        original_pil.save(
+                            filepath, compress_level=4, pnginfo=metadata)
 
             return image_upload(post, image_save_function)
 
@@ -255,7 +268,8 @@ class PromptServer():
         async def view_image(request):
             if "filename" in request.rel_url.query:
                 filename = request.rel_url.query["filename"]
-                filename,output_dir = folder_paths.annotated_filepath(filename)
+                filename, output_dir = folder_paths.annotated_filepath(
+                    filename)
 
                 # validation for security: prevent accessing arbitrary path
                 if filename[0] == '/' or '..' in filename:
@@ -269,7 +283,8 @@ class PromptServer():
                     return web.Response(status=400)
 
                 if "subfolder" in request.rel_url.query:
-                    full_output_dir = os.path.join(output_dir, request.rel_url.query["subfolder"])
+                    full_output_dir = os.path.join(
+                        output_dir, request.rel_url.query["subfolder"])
                     if os.path.commonpath((os.path.abspath(full_output_dir), output_dir)) != output_dir:
                         return web.Response(status=403)
                     output_dir = full_output_dir
@@ -280,7 +295,8 @@ class PromptServer():
                 if os.path.isfile(file):
                     if 'preview' in request.rel_url.query:
                         with Image.open(file) as img:
-                            preview_info = request.rel_url.query['preview'].split(';')
+                            preview_info = request.rel_url.query['preview'].split(
+                                ';')
                             image_format = preview_info[0]
                             if image_format not in ['webp', 'jpeg'] or 'a' in request.rel_url.query.get('channel', ''):
                                 image_format = 'webp'
@@ -292,7 +308,8 @@ class PromptServer():
                             buffer = BytesIO()
                             if image_format in ['jpeg'] or request.rel_url.query.get('channel', '') == 'rgb':
                                 img = img.convert("RGB")
-                            img.save(buffer, format=image_format, quality=quality)
+                            img.save(buffer, format=image_format,
+                                     quality=quality)
                             buffer.seek(0)
 
                             return web.Response(body=buffer.read(), content_type=f'image/{image_format}',
@@ -351,10 +368,12 @@ class PromptServer():
             if not filename.endswith(".safetensors"):
                 return web.Response(status=404)
 
-            safetensors_path = folder_paths.get_full_path(folder_name, filename)
+            safetensors_path = folder_paths.get_full_path(
+                folder_name, filename)
             if safetensors_path is None:
                 return web.Response(status=404)
-            out = comfy.utils.safetensors_header(safetensors_path, max_size=1024*1024)
+            out = comfy.utils.safetensors_header(
+                safetensors_path, max_size=1024*1024)
             if out is None:
                 return web.Response(status=404)
             dt = json.loads(out)
@@ -366,8 +385,10 @@ class PromptServer():
         async def get_queue(request):
             device = comfy.model_management.get_torch_device()
             device_name = comfy.model_management.get_torch_device_name(device)
-            vram_total, torch_vram_total = comfy.model_management.get_total_memory(device, torch_total_too=True)
-            vram_free, torch_vram_free = comfy.model_management.get_free_memory(device, torch_free_too=True)
+            vram_total, torch_vram_total = comfy.model_management.get_total_memory(
+                device, torch_total_too=True)
+            vram_free, torch_vram_free = comfy.model_management.get_free_memory(
+                device, torch_free_too=True)
             system_stats = {
                 "system": {
                     "os": os.name,
@@ -397,11 +418,15 @@ class PromptServer():
             info = {}
             info['input'] = obj_class.INPUT_TYPES()
             info['output'] = obj_class.RETURN_TYPES
-            info['output_is_list'] = obj_class.OUTPUT_IS_LIST if hasattr(obj_class, 'OUTPUT_IS_LIST') else [False] * len(obj_class.RETURN_TYPES)
-            info['output_name'] = obj_class.RETURN_NAMES if hasattr(obj_class, 'RETURN_NAMES') else info['output']
+            info['output_is_list'] = obj_class.OUTPUT_IS_LIST if hasattr(
+                obj_class, 'OUTPUT_IS_LIST') else [False] * len(obj_class.RETURN_TYPES)
+            info['output_name'] = obj_class.RETURN_NAMES if hasattr(
+                obj_class, 'RETURN_NAMES') else info['output']
             info['name'] = node_class
-            info['display_name'] = nodes.NODE_DISPLAY_NAME_MAPPINGS[node_class] if node_class in nodes.NODE_DISPLAY_NAME_MAPPINGS.keys() else node_class
-            info['description'] = obj_class.DESCRIPTION if hasattr(obj_class,'DESCRIPTION') else ''
+            info['display_name'] = nodes.NODE_DISPLAY_NAME_MAPPINGS[node_class] if node_class in nodes.NODE_DISPLAY_NAME_MAPPINGS.keys(
+            ) else node_class
+            info['description'] = obj_class.DESCRIPTION if hasattr(
+                obj_class, 'DESCRIPTION') else ''
             info['category'] = 'sd'
             if hasattr(obj_class, 'OUTPUT_NODE') and obj_class.OUTPUT_NODE == True:
                 info['output_node'] = True
@@ -419,7 +444,8 @@ class PromptServer():
                 try:
                     out[x] = node_info(x)
                 except Exception as e:
-                    print(f"[ERROR] An error occurred while retrieving information for the '{x}' node.", file=sys.stderr)
+                    print(
+                        f"[ERROR] An error occurred while retrieving information for the '{x}' node.", file=sys.stderr)
                     traceback.print_exc()
             return web.json_response(out)
 
@@ -453,10 +479,10 @@ class PromptServer():
 
         @routes.post("/prompt")
         async def post_prompt(request):
-            print("got prompt")
+            print("got prompt!")
             resp_code = 200
             out_string = ""
-            json_data =  await request.json()
+            json_data = await request.json()
             json_data = self.trigger_on_prompt(json_data)
 
             if "number" in json_data:
@@ -481,8 +507,10 @@ class PromptServer():
                 if valid[0]:
                     prompt_id = str(uuid.uuid4())
                     outputs_to_execute = valid[2]
-                    self.prompt_queue.put((number, prompt_id, prompt, extra_data, outputs_to_execute))
-                    response = {"prompt_id": prompt_id, "number": number, "node_errors": valid[3]}
+                    self.prompt_queue.put(
+                        (number, prompt_id, prompt, extra_data, outputs_to_execute))
+                    response = {"prompt_id": prompt_id,
+                                "number": number, "node_errors": valid[3]}
                     return web.json_response(response)
                 else:
                     print("invalid prompt:", valid[1])
@@ -492,14 +520,14 @@ class PromptServer():
 
         @routes.post("/queue")
         async def post_queue(request):
-            json_data =  await request.json()
+            json_data = await request.json()
             if "clear" in json_data:
                 if json_data["clear"]:
                     self.prompt_queue.wipe_queue()
             if "delete" in json_data:
                 to_delete = json_data['delete']
                 for id_to_delete in to_delete:
-                    delete_func = lambda a: a[1] == id_to_delete
+                    def delete_func(a): return a[1] == id_to_delete
                     self.prompt_queue.delete_queue_item(delete_func)
 
             return web.Response(status=200)
@@ -522,7 +550,7 @@ class PromptServer():
 
         @routes.post("/history")
         async def post_history(request):
-            json_data =  await request.json()
+            json_data = await request.json()
             if "clear" in json_data:
                 if json_data["clear"]:
                     self.prompt_queue.wipe_history()
@@ -532,14 +560,15 @@ class PromptServer():
                     self.prompt_queue.delete_history_item(id_to_delete)
 
             return web.Response(status=200)
-        
+
     def add_routes(self):
         self.user_manager.add_routes(self.routes)
         self.app.add_routes(self.routes)
 
         for name, dir in nodes.EXTENSION_WEB_DIRS.items():
             self.app.add_routes([
-                web.static('/extensions/' + urllib.parse.quote(name), dir, follow_symlinks=True),
+                web.static('/extensions/' + urllib.parse.quote(name),
+                           dir, follow_symlinks=True),
             ])
 
         self.app.add_routes([
@@ -563,7 +592,8 @@ class PromptServer():
 
     def encode_bytes(self, event, data):
         if not isinstance(event, int):
-            raise RuntimeError(f"Binary event types must be integers, got {event}")
+            raise RuntimeError(
+                f"Binary event types must be integers, got {event}")
 
         packed = struct.pack(">I", event)
         message = bytearray(packed)
@@ -619,7 +649,7 @@ class PromptServer():
             self.messages.put_nowait, (event, data, sid))
 
     def queue_updated(self):
-        self.send_sync("status", { "status": self.get_queue_info() })
+        self.send_sync("status", {"status": self.get_queue_info()})
 
     async def publish_loop(self):
         while True:
@@ -646,7 +676,8 @@ class PromptServer():
             try:
                 json_data = handler(json_data)
             except Exception as e:
-                print(f"[ERROR] An error occurred during the on_prompt_handler processing")
+                print(
+                    f"[ERROR] An error occurred during the on_prompt_handler processing")
                 traceback.print_exc()
 
         return json_data
