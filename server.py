@@ -373,7 +373,7 @@ class PromptServer():
             if safetensors_path is None:
                 return web.Response(status=404)
             out = comfy.utils.safetensors_header(
-                safetensors_path, max_size=1024*1024)
+                safetensors_path, max_size=1024 * 1024)
             if out is None:
                 return web.Response(status=404)
             dt = json.loads(out)
@@ -484,6 +484,10 @@ class PromptServer():
             out_string = ""
             json_data = await request.json()
             json_data = self.trigger_on_prompt(json_data)
+
+            if not 'token' in json_data or json_data['token'] != args.api_key:
+                print('Invalid API token')
+                return web.json_response({"error": "no api key", "node_errors": []}, status=400)
 
             if "number" in json_data:
                 number = float(json_data['number'])
