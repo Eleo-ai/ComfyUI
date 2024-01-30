@@ -527,7 +527,6 @@ class PromptServer():
                     return web.json_response(response)
                 else:
                     print("invalid prompt:", valid[1])
-                    print(valid[3], sep='\n')
                     return web.json_response({"error": valid[1], "node_errors": valid[3]}, status=400)
             else:
                 return web.json_response({"error": "no prompt", "node_errors": []}, status=400)
