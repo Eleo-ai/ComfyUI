@@ -477,6 +477,12 @@ class PromptServer():
             queue_info['queue_pending'] = current_queue[1]
             return web.json_response(queue_info)
 
+        def check_permissions(json_data):
+            if args.api_key and (not 'token' in json_data or json_data['token'] != args.api_key):
+                print('Invalid API token')
+                return False
+            return True
+
         @routes.post("/prompt")
         async def post_prompt(request):
             print("got prompt!")
@@ -485,9 +491,12 @@ class PromptServer():
             json_data = await request.json()
             json_data = self.trigger_on_prompt(json_data)
 
-            if not 'token' in json_data or json_data['token'] != args.api_key:
-                print('Invalid API token')
-                return web.json_response({"error": "no api key", "node_errors": []}, status=400)
+            if not check_permissions(json_data):
+                return web.json_response(
+                    {
+                        "error": {"message": "Invalid API key", "details": "Please provide an api key"},
+                        "node_errors": []
+                    }, status=400)
 
             if "number" in json_data:
                 number = float(json_data['number'])
@@ -518,6 +527,7 @@ class PromptServer():
                     return web.json_response(response)
                 else:
                     print("invalid prompt:", valid[1])
+                    print(valid[3], sep='\n')
                     return web.json_response({"error": valid[1], "node_errors": valid[3]}, status=400)
             else:
                 return web.json_response({"error": "no prompt", "node_errors": []}, status=400)
@@ -525,6 +535,14 @@ class PromptServer():
         @routes.post("/queue")
         async def post_queue(request):
             json_data = await request.json()
+
+            if not check_permissions(json_data):
+                return web.json_response(
+                    {
+                        "error": {"message": "Invalid API key", "details": "Please provide an api key"},
+                        "node_errors": []
+                    }, status=400)
+
             if "clear" in json_data:
                 if json_data["clear"]:
                     self.prompt_queue.wipe_queue()
@@ -544,6 +562,14 @@ class PromptServer():
         @routes.post("/free")
         async def post_free(request):
             json_data = await request.json()
+
+            if not check_permissions(json_data):
+                return web.json_response(
+                    {
+                        "error": {"message": "Invalid API key", "details": "Please provide an api key"},
+                        "node_errors": []
+                    }, status=400)
+
             unload_models = json_data.get("unload_models", False)
             free_memory = json_data.get("free_memory", False)
             if unload_models:
@@ -555,6 +581,14 @@ class PromptServer():
         @routes.post("/history")
         async def post_history(request):
             json_data = await request.json()
+
+            if not check_permissions(json_data):
+                return web.json_response(
+                    {
+                        "error": {"message": "Invalid API key", "details": "Please provide an api key"},
+                        "node_errors": []
+                    }, status=400)
+
             if "clear" in json_data:
                 if json_data["clear"]:
                     self.prompt_queue.wipe_history()
