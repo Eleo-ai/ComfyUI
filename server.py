@@ -519,6 +519,9 @@ class PromptServer():
                     extra_data["client_id"] = json_data["client_id"]
                 if valid[0]:
                     prompt_id = str(uuid.uuid4())
+                    if "prompt_id" in json_data:
+                        prompt_id = json_data["prompt_id"]
+
                     outputs_to_execute = valid[2]
                     self.prompt_queue.put(
                         (number, prompt_id, prompt, extra_data, outputs_to_execute))
