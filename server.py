@@ -697,12 +697,7 @@ class PromptServer():
             return
 
         for sid, positions in pending_clients.items():
-            prompt_info = {}
-            exec_info = {}
-            exec_info['queue_remaining'] = positions[0]
-            prompt_info['exec_info'] = exec_info
-
-            self.send_sync("status", {"remaining": prompt_info}, sid)
+            self.send_sync("queue", {"remaining": positions[0]}, sid)
 
     async def publish_loop(self):
         while True:
