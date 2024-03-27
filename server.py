@@ -688,7 +688,21 @@ class PromptServer():
             self.messages.put_nowait, (event, data, sid))
 
     def queue_updated(self):
+        # Send global queue info
         self.send_sync("status", {"status": self.get_queue_info()})
+
+        # Self client queue info (how long untill clients request is processed)
+        pending_clients = self.prompt_queue.get_queue_position_per_client()
+        if not len(pending_clients):
+            return
+
+        for sid, positions in pending_clients.items():
+            prompt_info = {}
+            exec_info = {}
+            exec_info['queue_remaining'] = positions[0]
+            prompt_info['exec_info'] = exec_info
+
+            self.send_sync("status", {"remaining": prompt_info}, sid)
 
     async def publish_loop(self):
         while True:
