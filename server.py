@@ -697,7 +697,8 @@ class PromptServer():
             return
 
         for sid, positions in pending_clients.items():
-            self.send_sync("queue", {"remaining": positions[0]}, sid)
+            self.send_sync(
+                "queue", {"remaining": positions[0][0], "prompt_id": positions[0][1]}, sid)
 
     async def publish_loop(self):
         while True:

@@ -810,17 +810,21 @@ class PromptQueue:
         pending_clients = []
         with self.mutex:
             for item in self.queue:
-                pending_clients.append([item[3]['client_id'], item[0]])
+                print(item)
+                pending_clients.append(
+                    [item[3]['client_id'], item[0], item[1]])
+                # [client_id, numer_in_queue, prompt_id]
 
         pending_clients.sort(key=lambda i: i[1])
 
         positions = dict()
         for index, item in enumerate(pending_clients):
             if item[0] not in positions:
-                positions[item[0]] = [index + 1]
+                positions[item[0]] = [[index + 1, item[2]]]
             else:
-                positions[item[0]].append(index + 1)
+                positions[item[0]].append([index + 1, item[2]])
 
+        # client_id: [[number_in_queue, prompt_id], ...]
         return positions
 
     def wipe_queue(self):
