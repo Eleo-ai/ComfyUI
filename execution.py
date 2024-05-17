@@ -810,7 +810,6 @@ class PromptQueue:
         pending_clients = []
         with self.mutex:
             for item in self.queue:
-                print(item)
                 pending_clients.append(
                     [item[3]['client_id'], item[0], item[1]])
                 # [client_id, numer_in_queue, prompt_id]
